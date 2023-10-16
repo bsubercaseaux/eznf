@@ -4,7 +4,7 @@ class Modeler:
         self._clauses = []
         self._semvars = {}
         
-    def add_var(self, name, description) -> None:
+    def add_var(self, name, description="no description") -> None:
         self._varmap[name] = (len(self._varmap) + 1, description)
         
     def add_svar(self, name, description, semantic_type, **kwargs) -> None:
