@@ -1,4 +1,6 @@
+LICENSE
 README.md
+pyproject.toml
 setup.py
 eznf/__init__.py
 eznf/modeler.py
@@ -6,3 +8,4 @@ eznf.egg-info/PKG-INFO
 eznf.egg-info/SOURCES.txt
 eznf.egg-info/dependency_links.txt
 eznf.egg-info/top_level.txt
+tests/test_modeler.py
