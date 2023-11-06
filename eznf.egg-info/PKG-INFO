@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: eznf
-Version: 0.1.1
+Version: 0.8.2
 Summary: A prototype library to prototype SAT encodings
 Author: Bernardo Subercaseaux
 Author-email: Bernardo Subercaseaux <bernardosubercaseaux@gmail.com>

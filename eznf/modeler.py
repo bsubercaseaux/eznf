@@ -4,6 +4,9 @@ from subprocess import check_output, CalledProcessError, STDOUT
 
 class Modeler:
     def __init__(self) -> None:
+        self.reset()
+        
+    def reset(self) -> None:
         self._varmap = {}
         self._rvarmap = {}
         self._clauses = []
@@ -11,7 +14,7 @@ class Modeler:
         self._semvars = {}
         self._max_sat = False
         self._clause_weights = {}
-        
+
     def add_var(self, name, description="no description") -> None:
         if name in self._varmap:
             print(f"[Warning]: Variable {name} already exists")
