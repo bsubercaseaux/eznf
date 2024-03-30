@@ -518,10 +518,12 @@ class CAtMost:
         if self.k == 1:
             return CAtMostOne(self.variables, self.modeler).to_clauses()
         else:
+            hsh = hash(tuple(self.variables))
+            vnames = f"__auxcount_{hsh}"
             cvars = CountingVars(
-                f"__auxcount", self.variables, self.modeler, upper_bound=self.k + 1
+                vnames, self.variables, self.modeler, upper_bound=self.k + 1
             )
-            return cvars.added_clauses + [[-self.modeler.v(f"__auxcount_{self.k+1}")]]
+            return cvars.added_clauses + [[-self.modeler.v(f"__vnames_{self.k+1}")]]
 
 
 class GConstraint:
