@@ -82,7 +82,7 @@ class Modeler:
             for line in file:
                 if line[0] == "c":
                     continue
-                elif line[0] == "p":
+                if line[0] == "p":
                     tokens = line.split(" ")
                     if tokens[1] == "cnf":
                         self._max_sat = False
@@ -279,9 +279,9 @@ class Modeler:
                 self.add_var(
                     f"_anonymous_var_by_number_{abs(lit)}", var_number=abs(lit)
                 )
-        for cl in self._clauses:
-            if set(cl) == set(numerical_clause):
-                return
+        # for cl in self._clauses:
+        #     if set(cl) == set(numerical_clause):
+        #         return
         self._clauses.append(numerical_clause)
 
     def add_clauses(self, clauses) -> None:
