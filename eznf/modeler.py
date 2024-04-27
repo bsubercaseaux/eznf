@@ -118,6 +118,23 @@ class Modeler:
         self._clause_weights = {}
 
     def add_var(self, name, description="no description", var_number=None) -> None:
+        """
+        Adds a variable to the modeler.
+
+        Args:
+            name (str): The name of the variable.
+            description (str, optional): The description of the variable. Defaults to
+                "no description".
+            var_number (int, optional): The variable number. 
+                If not provided, it will be assigned automatically.
+
+        Returns:
+            None
+
+        Raises:
+            AssertionError: If var_number is provided and already exists in the modeler.
+
+        """
         if name in self._varmap:
             print(f"[Warning]: Variable {name} already exists")
             return
