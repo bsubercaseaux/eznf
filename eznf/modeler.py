@@ -58,12 +58,25 @@ class Modeler:
         serialize_encoding(self, filename, clauses=None): Serializes the encoding part of the modeler to a file.
         serialize_decoder(self, filename): Serializes the decoder part of the modeler to a file.
     """
+
     def __init__(self, input_filename=None) -> None:
         self.reset()
         if input_filename is not None:
             self.load(input_filename)
 
     def load(self, input_filename) -> None:
+        """
+        Load a CNF or WCNF file into the modeler.
+
+        Args:
+            input_filename (str): The path to the input file.
+
+        Raises:
+            TypeError: If the file type is unknown.
+
+        Returns:
+            None
+        """
         with open(input_filename, "r", encoding="utf-8") as file:
             for line in file:
                 if line[0] == "c":
@@ -179,7 +192,7 @@ class Modeler:
                 return self._varmap[name][0]
             raise KeyError(f"Variable {name} not found")
         return self._varmap[name][0]
-     
+
     def has_var(self, name) -> bool:
         return name in self._varmap
 
@@ -190,12 +203,12 @@ class Modeler:
             return f"-{self._rvarmap[-lit]}"
 
     def get_clauses(self) -> list:
-        """ returns the clauses currently in the modeler."""
+        """returns the clauses currently in the modeler."""
         return self._clauses
 
     def get_vars(self) -> list:
-        """ returns the variables currently in the modeler.
-            each variable is a tuple (name, number, description).
+        """returns the variables currently in the modeler.
+        each variable is a tuple (name, number, description).
         """
         ans = []
         for name, (number, description) in self._varmap.items():
@@ -203,11 +216,11 @@ class Modeler:
         return ans
 
     def n_clauses(self) -> int:
-        """ number of clauses."""
+        """number of clauses."""
         return len(self._clauses)
 
     def n_vars(self) -> int:
-        """ number of used variables.
+        """number of used variables.
             NOTE: this is different from the max variable index used.
         Returns:
             int: total number of different variables, including auxiliary ones.
@@ -258,7 +271,7 @@ class Modeler:
 
     def exactly_one(self, variables) -> None:
         self.add_clauses(cardinality.CExactly(1, variables, self).to_clauses())
-        
+
     def exactly_k(self, variables, k) -> None:
         self.add_clauses(cardinality.CExactly(k, variables, self).to_clauses())
 
