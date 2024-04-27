@@ -21,3 +21,9 @@ For example, we can use
 Z.add_var(f'v_{i}', f'vertex {i} is selected for the CLIQUE')
 ```
 
+
+## Tests
+
+```
+python3 -m pytest
+```
