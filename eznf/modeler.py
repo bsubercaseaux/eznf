@@ -4,6 +4,7 @@ from eznf import cardinality
 from eznf import order_interval
 from eznf import constants
 from eznf import xor
+from eznf.sem_cnf import Implication, And, Or, Not
 
 
 class Modeler:
