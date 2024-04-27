@@ -7,6 +7,57 @@ from eznf import xor
 
 
 class Modeler:
+    """
+    The `Modeler` class represents a modeler for propositional logic formulas.
+    It provides methods for loading formulas, adding variables and clauses,
+    and performing various operations on the formulas.
+
+    Attributes:
+        _varmap (dict): A dictionary mapping variable names to their corresponding numbers and descriptions.
+        _rvarmap (dict): A dictionary mapping variable numbers to their corresponding names.
+        _clauses (list): A list of clauses in the modeler.
+        _kconstraints (list): A list of cardinality constraints in the modeler.
+        _gconstraints (list): A list of generalized constraints in the modeler.
+        _semvars (dict): A dictionary mapping semantic variable names to their corresponding objects.
+        _max_sat (bool): A boolean indicating whether the modeler is in MaxSAT mode.
+        _qbf (bool): A boolean indicating whether the modeler is in QBF mode.
+        _qbf_var_blocks (list): A list of quantifier blocks in the modeler.
+        _clause_weights (dict): A dictionary mapping clauses to their corresponding weights.
+
+    Methods:
+        __init__(self, input_filename=None): Initializes a new instance of the Modeler class.
+        load(self, input_filename): Loads a formula from a file.
+        reset(self): Resets the modeler to its initial state.
+        add_var(self, name, description="no description", var_number=None): Adds a variable to the modeler.
+        add_existential_var(self, name, description="no description", var_number=None): Adds an existential variable to the modeler.
+        add_universal_var(self, name, description="no description", var_number=None): Adds a universal variable to the modeler.
+        add_svar(self, name, semantic_type, description="no_description", **kwargs): Adds a semantic variable to the modeler.
+        add_sclause(self, sclause): Adds a semantic clause to the modeler.
+        constraint(self, constraint): Adds a constraint to the modeler.
+        add_soft_clause(self, clause): Adds a soft clause to the modeler.
+        add_xor_disjunction(self, xor_disjunction, auxiliary=True): Adds an XOR disjunction to the modeler.
+        v(self, name, introduce_if_absent=False): Returns the number of a variable given its name.
+        has_var(self, name): Checks if a variable exists in the modeler.
+        lit_to_str(self, lit): Converts a literal to its string representation.
+        get_clauses(self): Returns the clauses currently in the modeler.
+        get_vars(self): Returns the variables currently in the modeler.
+        n_clauses(self): Returns the number of clauses in the modeler.
+        n_vars(self): Returns the number of used variables in the modeler.
+        cube_and_conquer(self, cube_generator, output_file="cubes.icnf"): Generates cubes from the modeler and writes them to a file.
+        interval_contains(self, name, value): Checks if an interval variable contains a value.
+        add_clause(self, clause): Adds a clause to the modeler.
+        add_clauses(self, clauses): Adds multiple clauses to the modeler.
+        add_gconstraint(self, bound, guard, variables): Adds a generalized constraint to the modeler.
+        add_kconstraint(self, bound, variables): Adds a cardinality constraint to the modeler.
+        exactly_one(self, variables): Adds an exactly-one constraint to the modeler.
+        exactly_k(self, variables, k): Adds an exactly-k constraint to the modeler.
+        at_most_one(self, variables, constraint_type="3-chunks"): Adds an at-most-one constraint to the modeler.
+        at_most_k(self, variables, k): Adds an at-most-k constraint to the modeler.
+        at_least_k(self, variables, k): Adds an at-least-k constraint to the modeler.
+        serialize(self, basename): Serializes the modeler to files.
+        serialize_encoding(self, filename, clauses=None): Serializes the encoding part of the modeler to a file.
+        serialize_decoder(self, filename): Serializes the decoder part of the modeler to a file.
+    """
     def __init__(self, input_filename=None) -> None:
         self.reset()
         if input_filename is not None:
