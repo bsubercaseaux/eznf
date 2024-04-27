@@ -97,6 +97,15 @@ class Modeler:
                     self.add_clause(clause)
 
     def reset(self) -> None:
+        """
+        Resets the state of the modeler.
+
+        This method clears all the internal data structures and 
+        resets the modeler to its initial state.
+
+        Returns:
+            None
+        """
         self._varmap = {}
         self._rvarmap = {}
         self._clauses = []
