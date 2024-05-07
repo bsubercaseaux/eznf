@@ -279,9 +279,9 @@ class Modeler:
                 self.add_var(
                     f"_anonymous_var_by_number_{abs(lit)}", var_number=abs(lit)
                 )
-        # for cl in self._clauses:
-        #     if set(cl) == set(numerical_clause):
-        #         return
+            # for cl in self._clauses:
+            #     if set(cl) == set(numerical_clause):
+            #         return
         self._clauses.append(numerical_clause)
 
     def add_clauses(self, clauses) -> None:
@@ -332,7 +332,7 @@ class Modeler:
 
     def serialize(self, basename) -> None:
         self.serialize_encoding(basename)
-        self.serialize_decoder(basename + ".dec")
+        # self.serialize_decoder(basename + ".dec")
 
     def serialize_encoding(self, filename, clauses=None) -> None:
         if clauses is None:

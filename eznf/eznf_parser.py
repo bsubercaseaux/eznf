@@ -2,15 +2,12 @@
 from lark import Lark, Transformer
 
 # Lark grammar definition
-GRAMMAR = """
-?start: expression
-
+GRAMMAR = r"""
 ?expression: literal
-           | variable
            | "not" expression  -> not_
            | expression ("<=>" | "<->") expression  -> iff
-           | expression ("and" | "&" | "^" | "/\") expression  -> and_
-           | expression ("or" | "|" | "v" | "\/") expression  -> or_
+           | expression ("and" | "&" | "&&" | "^") expression  -> and_
+           | expression ("or" | "|" | "||" | "v") expression  -> or_
            | expression ("->" | "=>") expression  -> implies
            | "(" expression ")"
 
@@ -217,7 +214,7 @@ class MyTransformer(Transformer):
 
 
 # Lark parser instance
-parser = Lark(GRAMMAR, start="start")
+parser = Lark(GRAMMAR, start="expression", parser="lalr")
 
 
 # Function to convert string to clauses using Lark
