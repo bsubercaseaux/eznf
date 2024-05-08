@@ -1,4 +1,4 @@
-import modeler
+from eznf import modeler
 
 def forall_exists_encodings(universal_encoding, existential_encoding):
     """
@@ -9,11 +9,16 @@ def forall_exists_encodings(universal_encoding, existential_encoding):
         vname, _, vdesc = var
         Z.add_universal_var(vname, vdesc)
 
+    processed_clauses = set()
     for clause in universal_encoding.get_clauses():
+        if clause in processed_clauses:
+            print(f"Warning: duplicate clause in universal encoding, {clause}")
+
         Z.add_existential_var(f"__f_{clause}")
         Z.add_clause([-Z.v(f"__f_{clause}")] + clause)
         for var in clause:
             Z.add_clause([Z.v(f"__f_{clause}"), -var])
+        processed_clauses.add(tuple(clause))
 
     for var in existential_encoding.get_vars():
         vname, _, vdesc = var

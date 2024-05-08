@@ -22,7 +22,13 @@ def clause_filter(clause: List[int]) -> List[int]:
     for lit in clause:
         if -lit in literal_set:
             return "SKIP"
-    return list(literal_set)
+    # duplicates have been removed.
+    # now we want to return the clause in the order of the literals
+    initial_order = {}
+    for lit in literal_set:
+        initial_order[lit] = clause.index(lit)
+    list_literal_set = list(literal_set)
+    return sorted(list_literal_set, key=lambda x: initial_order[x])
 
 
 def system_call(command, timeout=None):
