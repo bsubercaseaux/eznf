@@ -2,14 +2,14 @@ from typing import List
 import time
 from subprocess import TimeoutExpired, check_output, CalledProcessError, STDOUT
 
-def to_numerical(clause, modeler) -> List[int]:
+def to_numerical(clause, modeler, introduce_if_absent=False) -> List[int]:
     numerical_clause = []
     for slit in clause:
         if isinstance(slit, str):
             if slit[0] == "~" or slit[0] == "-":
-                numerical_clause.append(-modeler.v(slit[1:], introduce_if_absent=True))
+                numerical_clause.append(-modeler.v(slit[1:], introduce_if_absent=introduce_if_absent))
             else:
-                numerical_clause.append(modeler.v(slit, introduce_if_absent=True))
+                numerical_clause.append(modeler.v(slit, introduce_if_absent=introduce_if_absent))
         elif isinstance(slit, int):
             numerical_clause.append(slit)
         else:
@@ -25,8 +25,8 @@ def clause_filter(clause: List[int]) -> List[int]:
     # duplicates have been removed.
     # now we want to return the clause in the order of the literals
     initial_order = {}
-    for lit in literal_set:
-        initial_order[lit] = clause.index(lit)
+    for i, lit in enumerate(clause):
+        initial_order[lit] = i
     list_literal_set = list(literal_set)
     return sorted(list_literal_set, key=lambda x: initial_order[x])
 

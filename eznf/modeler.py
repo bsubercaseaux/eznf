@@ -1,10 +1,10 @@
-from eznf import eznf_parser
-from eznf import utils
-from eznf import cardinality
-from eznf import order_interval
-from eznf import constants
-from eznf import xor
-from eznf.sem_cnf import Implication, And, Or, Not
+import eznf_parser
+import utils
+import cardinality
+import order_interval
+import constants
+import xor
+from sem_cnf import Implication, And, Or, Not
 
 
 class Modeler:
@@ -229,8 +229,18 @@ class Modeler:
         else:
             return f"-{self._rvarmap[-lit]}"
 
-    def get_clauses(self) -> list:
-        """returns the clauses currently in the modeler."""
+    def get_clauses(self, no_dups=False) -> list:
+        """returns the clauses currently in the modeler.
+            no_dups: whether to eliminate duplicate clauses"""
+        if no_dups:
+            cls_set = set()
+            filtered_cls = []
+            for clause in self._clauses:
+                sorted_clause = tuple(sorted(clause))
+                if sorted_clause not in cls_set:
+                    filtered_cls.append(clause)
+                    cls_set.add(sorted_clause)
+            return filtered_cls
         return self._clauses
 
     def get_vars(self) -> list:
@@ -267,7 +277,7 @@ class Modeler:
         o_interval = self._semvars[name]
         return o_interval.contains(value)
 
-    def add_clause(self, clause) -> None:
+    def add_clause(self, clause: list) -> None:
         if self._max_sat:
             self._clause_weights[tuple(clause)] = "HARD"
         numerical_clause = utils.to_numerical(clause, self)
@@ -276,6 +286,7 @@ class Modeler:
             return
         for lit in numerical_clause:
             if abs(lit) not in self._rvarmap:
+                # TODO: Warning: variable not found
                 self.add_var(
                     f"_anonymous_var_by_number_{abs(lit)}", var_number=abs(lit)
                 )
@@ -369,7 +380,8 @@ class Modeler:
     def max_var_number(self) -> int:
         mx = 0
         for clause in self._clauses:
-            mx = max(mx, *[abs(lit) for lit in clause])
+            if len(clause):
+                mx = max(mx, *[abs(lit) for lit in clause])
         return mx
 
     def serialize_decoder(self, filename) -> None:
@@ -400,7 +412,7 @@ class Modeler:
                 )
         return output_builder(sem_valuation)
 
-    def solve_and_decode(self, output_builder, solver="kissat") -> None:
+    def solve_and_decode(self, output_builder, solver="kissat") -> str:
         lit_valuation = {}
         self.serialize(constants.TMP_FILENAME)
         output, return_code = utils.system_call([solver, constants.TMP_FILENAME])
@@ -408,8 +420,8 @@ class Modeler:
             print(
                 f"return code = {return_code}, UNSAT formula does not allow decoding."
             )
-            return
-
+            return output
+            
         for line in output.split("\n"):
             if len(line) > 0 and line[0] == "v":
                 tokens = line.split(" ")  # skip newline
@@ -426,6 +438,7 @@ class Modeler:
         # for sem_name, sem_var in self._semvars.items():
         #     sem_valuation[sem_name] = OrderIntervalValuation(sem_var, lit_valuation)
         output_builder(sem_valuation)
+        return output
 
     def solve_with_proof(self, timeout=None):
         tmp_filename = "__tmp.cnf"

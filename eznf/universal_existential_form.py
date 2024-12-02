@@ -9,25 +9,29 @@ def forall_exists_encodings(universal_encoding, existential_encoding):
         vname, _, vdesc = var
         Z.add_universal_var(vname, vdesc)
 
-    processed_clauses = set()
-    for clause in universal_encoding.get_clauses():
-        if clause in processed_clauses:
-            print(f"Warning: duplicate clause in universal encoding, {clause}")
-
-        Z.add_existential_var(f"__f_{clause}")
-        Z.add_clause([-Z.v(f"__f_{clause}")] + clause)
+    universal_clauses = universal_encoding.get_clauses(no_dups=True)
+    existential_clauses = existential_encoding.get_clauses(no_dups=True)   
+    
+    def f_var(clause):
+        return f"__f_{clause}"
+    
+    for clause in universal_clauses:
+        Z.add_existential_var(f_var(clause))
+        Z.add_clause([-Z.v(f_var(clause))] + clause)
         for var in clause:
-            Z.add_clause([Z.v(f"__f_{clause}"), -var])
-        processed_clauses.add(tuple(clause))
+            Z.add_clause([Z.v(f_var(clause)), -var])
 
     for var in existential_encoding.get_vars():
         vname, _, vdesc = var
         if not Z.has_var(vname):
             Z.add_existential_var(vname, vdesc)
 
-    for clause in existential_encoding.get_clauses():
+    negative_universal_vars = [-Z.v(f_var(c)) for c in universal_clauses]
+    for i, clause in enumerate(existential_clauses):
+        print(f"existential clause {i}", end="\r")
         converted_clause = [existential_encoding.lit_to_str(lit) for lit in clause]
-        fclause = converted_clause + [-Z.v(f"__f_{c}") for c in universal_encoding.get_clauses()]
+        fclause = converted_clause + negative_universal_vars
         Z.add_clause(fclause)
+    print('\n')
 
     return Z

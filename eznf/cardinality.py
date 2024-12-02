@@ -11,18 +11,22 @@ class CExactly:
 
     def to_clauses(self) -> List[List[int]]:
         clauses = []
+        if len(self.variables) < self.k:
+            return [[]]
+        if len(self.variables) == self.k:
+            return [utils.to_numerical(self.variables, self.modeler)]
         if self.k == 1:
             at_least = utils.to_numerical(self.variables, self.modeler)
             clauses.append(at_least)
             clauses += CAtMostOne(self.variables, self.modeler).to_clauses()
             return clauses
-        else:
-            hsh = hash(tuple(self.variables))
-            vnames = f"__auxcount_{hsh}"
-            cvars = CountingVars(
-                vnames, self.variables, self.modeler
-            )
-            return cvars.added_clauses + [[self.modeler.v(f"{vnames}_{self.k}")]]
+        
+        hsh = hash(tuple(self.variables))
+        vnames = f"__auxcount_{hsh}"
+        cvars = CountingVars(
+            vnames, self.variables, self.modeler
+        )
+        return cvars.added_clauses + [[self.modeler.v(f"{vnames}_{self.k}")]]
 
 
 class CAtMostOne:
@@ -140,7 +144,8 @@ class CountingVars:
             return min(
                 i + 1, upper_bound if upper_bound is not None else len(self.variables)
             )
-
+            
+        n_aux_vars = 0
         for i in range(len(self.variables)):
             for j in range(ub(i) + 1):
                 self.modeler.add_var(
@@ -149,6 +154,9 @@ class CountingVars:
                         over {self.varname_base}_{i}. Semantics mean that
                         exactly {j} variables are true until index {i} included""",
                 )
+                n_aux_vars += 1
+        print(f"created {n_aux_vars} auxiliary variables")
+       
             #  print(f"created variable {self.varname_base}_{i, j}")
 
         def aux(i, j):
