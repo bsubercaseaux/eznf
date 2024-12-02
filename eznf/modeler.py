@@ -412,7 +412,7 @@ class Modeler:
                 )
         return output_builder(sem_valuation)
 
-    def solve_and_decode(self, output_builder, solver="kissat") -> str:
+    def solve_and_decode(self, output_builder, solver="kissat") -> tuple[str, int]:
         lit_valuation = {}
         self.serialize(constants.TMP_FILENAME)
         output, return_code = utils.system_call([solver, constants.TMP_FILENAME])
@@ -420,7 +420,7 @@ class Modeler:
             print(
                 f"return code = {return_code}, UNSAT formula does not allow decoding."
             )
-            return output
+            return output, return_code
             
         for line in output.split("\n"):
             if len(line) > 0 and line[0] == "v":
@@ -438,7 +438,7 @@ class Modeler:
         # for sem_name, sem_var in self._semvars.items():
         #     sem_valuation[sem_name] = OrderIntervalValuation(sem_var, lit_valuation)
         output_builder(sem_valuation)
-        return output
+        return output, return_code
 
     def solve_with_proof(self, timeout=None):
         tmp_filename = "__tmp.cnf"
