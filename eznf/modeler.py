@@ -1,10 +1,10 @@
-import eznf_parser
-import utils
-import cardinality
-import order_interval
-import constants
-import xor
-from sem_cnf import Implication, And, Or, Not
+from eznf import eznf_parser
+from eznf import utils
+from eznf import cardinality
+from eznf import order_interval
+from eznf import constants
+from eznf import xor
+from eznf.sem_cnf import Implication, And, Or, Not
 
 
 class Modeler:
