@@ -5,6 +5,7 @@ from eznf import order_interval
 from eznf import constants
 from eznf import xor
 from eznf.sem_cnf import Implication, And, Or, Not
+from eznf.solver_output import SolverOutput
 
 
 class Modeler:
@@ -459,6 +460,31 @@ class Modeler:
         #     sem_valuation[sem_name] = OrderIntervalValuation(sem_var, lit_valuation)
         output_builder(sem_valuation)
         return output, return_code
+        
+    def solve(self, solver="kissat", timeout=None) -> SolverOutput:
+        lit_valuation = {}
+        self.serialize(constants.TMP_FILENAME)
+        output, return_code = utils.system_call([solver, constants.TMP_FILENAME], timeout=timeout)
+        if return_code == 20:
+            return SolverOutput(solver, "UNSAT", None)
+           
+        if return_code != 10:
+            return SolverOutput(solver, f"UNKNOWN with return code {return_code}", None)
+            
+        for line in output.split("\n"):
+            if len(line) > 0 and line[0] == "v":
+                tokens = line.split(" ")  # skip newline
+                relevant_tokens = tokens[1:]
+                for token in relevant_tokens:
+                    int_token = int(token)
+                    if int_token == 0:
+                        continue
+                    lit_valuation[abs(int_token)] = int_token > 0
+        sem_valuation = {}
+        for lit_name, (lit, _) in self._varmap.items():
+            sem_valuation[lit_name] = lit_valuation[lit]
+            
+        return SolverOutput(solver, "SAT", sem_valuation)
 
     def solve_with_proof(self, timeout=None):
         tmp_filename = "__tmp.cnf"
