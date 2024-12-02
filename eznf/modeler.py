@@ -287,6 +287,7 @@ class Modeler:
         for lit in numerical_clause:
             if abs(lit) not in self._rvarmap:
                 # TODO: Warning: variable not found
+                print(f"Warning: Variable {lit} not found in clause {clause}, introducing anonymous variable")
                 self.add_var(
                     f"_anonymous_var_by_number_{abs(lit)}", var_number=abs(lit)
                 )
@@ -294,16 +295,35 @@ class Modeler:
             #     if set(cl) == set(numerical_clause):
             #         return
         self._clauses.append(numerical_clause)
-
+        
+    def remove_clause(self, clause: list) -> None:
+        if self._max_sat:
+            raise NotImplementedError("Removing clauses in MaxSAT is not implemented yet")
+            
+        numerical_clause = utils.to_numerical(clause, self)
+        numerical_clause = utils.clause_filter(numerical_clause)
+        
+        self._clauses.remove(numerical_clause)
+        
     def add_clauses(self, clauses) -> None:
         for clause in clauses:
             self.add_clause(clause)
 
+
     def add_gconstraint(self, bound, guard, variables) -> None:
+        """
+        if guard: sum(variables) >= bound
+        """
         g_constraint = cardinality.GConstraint(bound, guard, variables)
         self._gconstraints.append(g_constraint)
 
     def add_kconstraint(self, bound, variables) -> None:
+        """sum(variables) >= bound
+
+        Args:
+            bound (_type_): _description_
+            variables (_type_): _description_
+        """
         k_constraint = cardinality.KConstraint(bound, variables, modeler=self)
         self._kconstraints.append(k_constraint)
 
