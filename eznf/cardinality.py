@@ -14,7 +14,7 @@ class CExactly:
         if len(self.variables) < self.k:
             return [[]]
         if len(self.variables) == self.k:
-            return [utils.to_numerical(self.variables, self.modeler)]
+            return [[n] for n in utils.to_numerical(self.variables, self.modeler)]
         if self.k == 1:
             at_least = utils.to_numerical(self.variables, self.modeler)
             clauses.append(at_least)
@@ -24,7 +24,7 @@ class CExactly:
         hsh = hash(tuple(self.variables))
         vnames = f"__auxcount_{hsh}"
         cvars = CountingVars(
-            vnames, self.variables, self.modeler
+            vnames, utils.to_numerical(self.variables, self.modeler), self.modeler
         )
         return cvars.added_clauses + [[self.modeler.v(f"{vnames}_{self.k}")]]
 
@@ -106,13 +106,14 @@ class CAtMost:
 
 
 class GConstraint:
-    def __init__(self, bound, guard, variables) -> None:
+    def __init__(self, bound, guard, variables, modeler) -> None:
         self.bound = bound
         self.guard = guard
         self.variables = variables
+        self.modeler = modeler
 
     def to_str(self) -> str:
-        lits = [self.bound] + [self.guard] + self.variables
+        lits = [self.bound] + utils.to_numerical([self.guard], self.modeler) + utils.to_numerical(self.variables, self.modeler)
         return "g " + " ".join(map(str, lits))
 
 
@@ -155,7 +156,7 @@ class CountingVars:
                         exactly {j} variables are true until index {i} included""",
                 )
                 n_aux_vars += 1
-        print(f"created {n_aux_vars} auxiliary variables")
+        # print(f"created {n_aux_vars} auxiliary variables")
        
             #  print(f"created variable {self.varname_base}_{i, j}")
 
@@ -197,8 +198,7 @@ class CountingVars:
             #     for k in range(j + 1, ub(i) + 1):
             #         add_cls([-aux(i, j), -aux(i, k)])
 
-        # non-decreasing for bounded counts.
-
+        # non-decreasing for bounded counts.        
         for j in range(ub(len(self.variables)) + 1):
             self.modeler.add_var(
                 f"{self.varname_base}_{j}",

@@ -100,9 +100,9 @@ class And:
         # print("And to cls")
         # print(f"self.left = {self.left}, type = {type(self.left)}")
         # print(f"self.right = {self.right}, type = {type(self.right)}")
-        left_cls = self.left.to_cls()
-        # print("left cls", left_cls)
-        right_cls = self.right.to_cls()
+        # left_cls = self.left.to_cls()
+        # # print("left cls", left_cls)
+        # right_cls = self.right.to_cls()
         # print("right_cls", right_cls)
         return self.left.to_cls() + self.right.to_cls()
 
@@ -119,7 +119,20 @@ class Or:
         # print("Or to cls")
         left_cls = self.left.to_cls()
         right_cls = self.right.to_cls()
-        return [r_cls + l_cls for r_cls in right_cls for l_cls in left_cls]
+        ans = []
+        def negated(literal):
+            if literal[0] == "-" or literal[0] == "~":
+                return literal[1:]
+            else: return f'-{literal}'
+            
+        for l_cls in left_cls:
+            for r_cls in right_cls:
+                # check if complementary literals
+                tautological = any(negated(lit) in r_cls for lit in l_cls)
+                if not tautological:
+                    ans.append(l_cls + r_cls)
+                    
+        return ans
 
 
 class Implies:
@@ -151,10 +164,21 @@ class Implies:
             return Or(And(self.left.left, Not(self.left.right)), self.right).to_cls()
 
         elif isinstance(self.left, Iff):
-            return And(
-                Or(And(self.left.left, Not(self.left.right)), self.right),
-                Or(And(self.left.right, Not(self.left.left)), self.right),
-            ).to_cls()
+            # (A <-> B) -> C
+            # = (A ^ -B) v (-A ^ B) v C
+            # print("self.left", self.left)
+            # print("self.right", self.right)
+            # print("self.left.left", self.left.left)
+            # print("self.left.right", self.left.right.to_cls())
+            # print("And(self.left.left, Not(self.left.right)))", And(self.left.right, Not(self.left.left)).to_cls())
+            # print("And(self.left.right, Not(self.left.left))", And(self.left.right, Not(self.left.left)).to_cls())
+            # print("Or(And(self.left.left, Not(self.left.right)), And(self.left.right, Not(self.left.left)))", Or(And(self.left.left, Not(self.left.right)), And(self.left.right, Not(self.left.left))).to_cls())
+            return Or(Or(And(self.left.left, Not(self.left.right)), And(self.left.right, Not(self.left.left))), self.right).to_cls()
+            
+            # return And(
+            #     Or(And(self.left.left, Not(self.left.right)), self.right),
+            #     Or(And(self.left.right, Not(self.left.left)), self.right),
+            # ).to_cls()
             # (a <-> b) -> c
             # a ^ {-b} -> c
             #

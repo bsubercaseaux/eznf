@@ -4,7 +4,6 @@ from eznf import cardinality
 from eznf import order_interval
 from eznf import constants
 from eznf import xor
-from eznf.sem_cnf import Implication, And, Or, Not
 from eznf.solver_output import SolverOutput
 
 
@@ -152,6 +151,19 @@ class Modeler:
     def add_existential_var(
         self, name, description="no description", var_number=None
     ) -> None:
+        """
+        Adds an existential variable to the modeler for QBF formulas.
+        
+        Args:
+            name (str): The name of the variable.
+            description (str, optional): The description of the variable. Defaults to
+                "no description".
+            var_number (int, optional): The variable number. 
+                If not provided, it will be assigned automatically.
+                
+        Returns:
+            None
+        """
         self.add_var(name, description, var_number)
         if self._qbf is False:
             self._qbf = True
@@ -163,6 +175,19 @@ class Modeler:
     def add_universal_var(
         self, name, description="no description", var_number=None
     ) -> None:
+        """
+        Adds a universal variable to the modeler for QBF formulas.
+        
+        Args:
+            name (str): The name of the variable.
+            description (str, optional): The description of the variable. Defaults to
+                "no description".
+            var_number (int, optional): The variable number. 
+                If not provided, it will be assigned automatically.
+                
+        Returns:
+            None
+        """
         self.add_var(name, description, var_number)
         if self._qbf is False:
             self._qbf = True
@@ -172,6 +197,30 @@ class Modeler:
             self._qbf_var_blocks[-1].append(self._varmap[name][0])
 
     def add_svar(self, name, semantic_type, description="no_description", **kwargs):
+        """
+        Adds a semantic variable to the modeler.
+        
+        Semantic variables represent higher-level constraints and can be of different types:
+        - ORDER_INTERVAL: Represents an interval with ordering constraints
+        - XOR: Represents an XOR relationship between two variables
+        - COUNTING_VARS: Represents variables used for cardinality constraints
+        
+        Args:
+            name (str): The name of the semantic variable.
+            semantic_type (str): The type of semantic variable. One of "ORDER_INTERVAL", "XOR", or "COUNTING_VARS".
+            description (str, optional): The description of the variable. Defaults to "no_description".
+            **kwargs: Additional arguments depending on the semantic type.
+                For ORDER_INTERVAL: "interval" and "active_length" are required.
+                For XOR: "left" and "right" are required.
+                For COUNTING_VARS: "variables" is required.
+                
+        Returns:
+            The created semantic variable object.
+            
+        Raises:
+            TypeError: If the semantic type is unknown.
+            AssertionError: If required kwargs are missing for a specific semantic type.
+        """
         if name in self._semvars:
             return self._semvars[name]
         if semantic_type == "ORDER_INTERVAL":
@@ -193,27 +242,93 @@ class Modeler:
             raise TypeError("Unknown semantic type")
 
     def add_sclause(self, sclause) -> None:
+        """
+        Adds a semantic clause to the modeler.
+        
+        A semantic clause is first converted to standard CNF clauses and then added to the modeler.
+        
+        Args:
+            sclause: A semantic clause object with a to_clauses() method that converts it to CNF.
+            
+        Returns:
+            None
+        """
         self.add_clauses(sclause.to_clauses())
 
     def constraint(self, constraint: str) -> None:
+        """
+        Adds a constraint specified as a string to the modeler.
+        
+        The constraint string is parsed into CNF clauses using the eznf_parser,
+        and each resulting clause is added to the modeler.
+        
+        Args:
+            constraint (str): A string representation of the logical constraint.
+                              For example: "x -> y" or "x <-> (y | z)"
+            
+        Returns:
+            None
+        """
         clauses = eznf_parser.str_to_clauses(constraint)
+        # for debugging
+        # print(f"adding constraint {constraint}")
         for clause in clauses:
+            # print("clause:", clause)
+            # print(self.clause_as_str(clause))
             self.add_clause(clause)
+       
 
     def add_soft_clause(self, clause) -> None:
-        self._clauses.append(clause)
+        """
+        Adds a soft clause to the modeler for MaxSAT problems.
+        
+        If this is the first soft clause, the modeler is converted to MaxSAT mode
+        and all previous clauses are marked as hard constraints.
+        
+        Args:
+            clause (list): A list of literals representing the clause.
+            
+        Returns:
+            None
+        """
+        self._clauses.append(utils.to_numerical(clause, self))
         if self._max_sat is False:
             # transform to max sat
             self._max_sat = True
             for prev_clause in self._clauses:
                 self._clause_weights[tuple(prev_clause)] = "HARD"
-        self._clause_weights[tuple(clause)] = "SOFT"
+        self._clause_weights[tuple(utils.to_numerical(clause, self))] = "SOFT"
 
     def add_xor_disjunction(self, xor_disjunction, auxiliary=True) -> None:
+        """
+        Adds an XOR disjunction to the modeler.
+        
+        Args:
+            xor_disjunction: An XOR disjunction object with a to_clauses method.
+            auxiliary (bool, optional): Whether to use auxiliary variables in the encoding.
+                                        Defaults to True.
+            
+        Returns:
+            None
+        """
         new_clauses = xor_disjunction.to_clauses(auxiliary)
         self.add_clauses(new_clauses)
 
     def v(self, name, introduce_if_absent=False) -> int:
+        """
+        Returns the number of a variable given its name.
+        
+        Args:
+            name (str): The name of the variable.
+            introduce_if_absent (bool, optional): If True and the variable doesn't exist,
+                                               create it. Defaults to False.
+            
+        Returns:
+            int: The number of the variable.
+            
+        Raises:
+            KeyError: If the variable doesn't exist and introduce_if_absent is False.
+        """
         if name not in self._varmap:
             if introduce_if_absent:
                 self.add_var(name, description="implictly introduced variable")
@@ -222,9 +337,30 @@ class Modeler:
         return self._varmap[name][0]
 
     def has_var(self, name) -> bool:
+        """
+        Checks if a variable exists in the modeler.
+        
+        Args:
+            name (str): The name of the variable to check.
+            
+        Returns:
+            bool: True if the variable exists, False otherwise.
+        """
         return name in self._varmap
 
     def lit_to_str(self, lit: int) -> str:
+        """
+        Converts a literal to its string representation.
+        
+        Args:
+            lit (int): The literal to convert. Positive number for the variable,
+                      negative number for its negation.
+            
+        Returns:
+            str: The string representation of the literal.
+                For positive literals, returns the variable name.
+                For negative literals, returns the variable name with a '-' prefix.
+        """
         if lit > 0:
             return f"{self._rvarmap[lit]}"
         else:
@@ -266,6 +402,19 @@ class Modeler:
         return len(self._varmap)
 
     def cube_and_conquer(self, cube_generator, output_file="cubes.icnf") -> None:
+        """
+        Generates cubes from the modeler and writes them to a file for cube-and-conquer solving.
+        
+        This method implements the cube-and-conquer paradigm for SAT solving, where the problem
+        is first split into smaller subproblems (cubes) that can be solved independently.
+        
+        Args:
+            cube_generator: A function that returns a list of cubes (lists of literals).
+            output_file (str, optional): The path to the output file. Defaults to "cubes.icnf".
+            
+        Returns:
+            None
+        """
         cubes = cube_generator()
         with open(output_file, "w", encoding="utf-8") as file:
             file.write("p inccnf\n")
@@ -275,14 +424,40 @@ class Modeler:
                 file.write("a " + " ".join(map(str, cube)) + " 0\n")
 
     def interval_contains(self, name, value) -> int:
+        """
+        Checks if an interval variable contains a specific value.
+        
+        Args:
+            name (str): The name of the interval variable.
+            value: The value to check for containment in the interval.
+            
+        Returns:
+            int: The literal representing the containment relationship.
+        """
         o_interval = self._semvars[name]
         return o_interval.contains(value)
 
     def add_clause(self, clause: list) -> None:
-        if self._max_sat:
-            self._clause_weights[tuple(clause)] = "HARD"
+        """
+        Adds a clause to the modeler.
+        
+        Args:
+            clause (list): A list of literals representing the clause. Literals can be
+                          integers or strings (variable names with optional - prefix).
+            
+        Returns:
+            None
+            
+        Note:
+            This method handles conversion of string literals to numerical form.
+            It automatically creates anonymous variables for unknown literal numbers.
+            If in MaxSAT mode, the clause is marked as a hard constraint.
+        """
+        
         numerical_clause = utils.to_numerical(clause, self)
         numerical_clause = utils.clause_filter(numerical_clause)
+        if self._max_sat:
+            self._clause_weights[tuple(numerical_clause)] = "HARD"
         if numerical_clause == "SKIP":
             return
         for lit in numerical_clause:
@@ -298,6 +473,19 @@ class Modeler:
         self._clauses.append(numerical_clause)
         
     def remove_clause(self, clause: list) -> None:
+        """
+        Removes a clause from the modeler.
+        
+        Args:
+            clause (list): A list of literals representing the clause to remove.
+            
+        Returns:
+            None
+            
+        Raises:
+            NotImplementedError: If attempting to remove clauses in MaxSAT mode.
+            ValueError: If the clause is not found in the modeler.
+        """
         if self._max_sat:
             raise NotImplementedError("Removing clauses in MaxSAT is not implemented yet")
             
@@ -307,6 +495,15 @@ class Modeler:
         self._clauses.remove(numerical_clause)
         
     def add_clauses(self, clauses) -> None:
+        """
+        Adds multiple clauses to the modeler.
+        
+        Args:
+            clauses (list): A list of clauses, where each clause is a list of literals.
+            
+        Returns:
+            None
+        """
         for clause in clauses:
             self.add_clause(clause)
 
@@ -315,7 +512,7 @@ class Modeler:
         """
         if guard: sum(variables) >= bound
         """
-        g_constraint = cardinality.GConstraint(bound, guard, variables)
+        g_constraint = cardinality.GConstraint(bound, guard, variables, modeler=self)
         self._gconstraints.append(g_constraint)
 
     def add_kconstraint(self, bound, variables) -> None:
@@ -327,14 +524,70 @@ class Modeler:
         """
         k_constraint = cardinality.KConstraint(bound, variables, modeler=self)
         self._kconstraints.append(k_constraint)
+        
+    def add_gconstraint_le(self, bound, guard, variables) -> None:
+        """
+        if guard: sum(variables) <= bound
+        """
+        neg_variables = [-v for v in utils.to_numerical(variables, self)]
+        neg_bound = len(variables) - bound
+        self.add_gconstraint(neg_bound, guard, neg_variables)
+        
+    def add_kconstraint_le(self, bound, variables) -> None:
+        """sum(variables) <= bound"""
+        neg_variables = [-v for v in utils.to_numerical(variables, self)]
+        neg_bound = len(variables) - bound
+        self.add_kconstraint(neg_bound, neg_variables)
+        
 
     def exactly_one(self, variables) -> None:
+        """
+        Adds an exactly-one constraint to the modeler.
+        
+        This constraint ensures that exactly one of the given variables is true.
+        
+        Args:
+            variables (list): A list of variables (can be names or numbers).
+            
+        Returns:
+            None
+        """
         self.add_clauses(cardinality.CExactly(1, variables, self).to_clauses())
 
     def exactly_k(self, variables, k) -> None:
+        """
+        Adds an exactly-k constraint to the modeler.
+        
+        This constraint ensures that exactly k of the given variables are true.
+        
+        Args:
+            variables (list): A list of variables (can be names or numbers).
+            k (int): The number of variables that should be true.
+            
+        Returns:
+            None
+        """
         self.add_clauses(cardinality.CExactly(k, variables, self).to_clauses())
 
     def at_most_one(self, variables, constraint_type="3-chunks") -> None:
+        """
+        Adds an at-most-one constraint to the modeler.
+        
+        This constraint ensures that at most one of the given variables is true.
+        Several encoding strategies are available, with different trade-offs between
+        clause size, number of clauses, and auxiliary variables.
+        
+        Args:
+            variables (list): A list of variables (can be names or numbers).
+            constraint_type (str, optional): The encoding strategy to use. Options are:
+                - "naive": Pairwise encoding (O(n²) clauses, no auxiliary variables)
+                - "bin-tree": Binary tree encoding
+                - "3-chunks": Commander encoding with chunks of size 3 (default)
+                - Any other value: Commander encoding with optimal chunk size
+            
+        Returns:
+            None
+        """
         if constraint_type == "naive":
             self.add_clauses(cardinality.CAtMostOne(variables, self).to_clauses_naive())
         elif constraint_type == "bin-tree":
@@ -345,6 +598,21 @@ class Modeler:
             self.add_clauses(cardinality.CAtMostOne(variables, self).to_clauses_o())
 
     def at_most_k(self, variables, k) -> None:
+        """
+        Adds an at-most-k constraint to the modeler.
+        
+        This constraint ensures that at most k of the given variables are true.
+        
+        Args:
+            variables (list): A list of variables (can be names or numbers).
+            k (int): The maximum number of variables that can be true.
+            
+        Returns:
+            None
+            
+        Note:
+            If k >= len(variables), the constraint is vacuously true and nothing is added.
+        """
         if k >= len(variables):
             return  # nothing to enforce in this case; it's vacuously true
         # print("entering at most k")
@@ -353,6 +621,23 @@ class Modeler:
         # print("exiting at most k")
 
     def at_least_k(self, variables, k) -> None:
+        """
+        Adds an at-least-k constraint to the modeler.
+        
+        This constraint ensures that at least k of the given variables are true.
+        The implementation uses the duality between at-least-k and at-most-k constraints:
+        at-least-k(vars) is equivalent to at-most-(n-k)(-vars).
+        
+        Args:
+            variables (list): A list of variables (can be names or numbers).
+            k (int): The minimum number of variables that must be true.
+            
+        Returns:
+            None
+            
+        Note:
+            For k=1, a more efficient encoding might be available.
+        """
         if k == 1:
             print("warning: inefficiency in the encoding!")
 
@@ -363,10 +648,58 @@ class Modeler:
         self.at_most_k(neg_variables, len(variables) - k)
 
     def serialize(self, basename) -> None:
+        """
+        Serializes the modeler to a file.
+        
+        This is a convenience method that calls serialize_encoding with the given basename.
+        
+        Args:
+            basename (str): The base filename to use for serialization.
+            
+        Returns:
+            None
+        """
         self.serialize_encoding(basename)
-        # self.serialize_decoder(basename + ".dec")
+        
+    def serialize_debug(self, filename) -> None:
+        """
+        Serializes the modeler to a file in DIMACS CNF format for debugging purposes.
+        
+        Args:
+            filename (str): The filename to write to.
+            
+        Returns:
+            None
+            
+        Note:
+            This method is only supported for CNF formulas (not MaxSAT or QBF).
+        """
+        # only supported for cnf right now
+        max_var = self.max_var_number()
+        clauses = self._clauses
+        with open(filename, "w", encoding="utf-8") as file:
+            file.write(f"p cnf {max_var} {len(clauses)}\n")
+            for clause in clauses:
+                file.write(" ".join(map(str, clause)) + " 0\n")
+            
 
     def serialize_encoding(self, filename, clauses=None) -> None:
+        """
+        Serializes the encoding part of the modeler to a file in the appropriate format.
+        
+        The format depends on the type of formula:
+        - CNF: Standard DIMACS CNF format
+        - MaxSAT: DIMACS WCNF format
+        - With k-constraints: KNF format
+        - QBF: QDIMACS format
+        
+        Args:
+            filename (str): The filename to write to.
+            clauses (list, optional): The clauses to serialize. If None, uses all clauses in the modeler.
+            
+        Returns:
+            None
+        """
         if clauses is None:
             clauses = self._clauses
         knf_constraints = self._gconstraints + self._kconstraints
@@ -399,6 +732,15 @@ class Modeler:
                     file.write(" ".join(map(str, clause)) + " 0\n")
 
     def max_var_number(self) -> int:
+        """
+        Returns the maximum variable number used in any clause.
+        
+        This is used for serialization to determine the number of variables to declare
+        in the formula header.
+        
+        Returns:
+            int: The maximum variable number used in any clause, or 0 if there are no clauses.
+        """
         mx = 0
         for clause in self._clauses:
             if len(clause):
@@ -462,6 +804,21 @@ class Modeler:
         return output, return_code
         
     def solve(self, solver="kissat", timeout=None) -> SolverOutput:
+        """
+        Solves the current formula using an external SAT solver.
+        
+        This method serializes the current formula to a temporary file,
+        calls an external SAT solver, and returns a SolverOutput object
+        containing the result and variable assignments if the formula is satisfiable.
+        
+        Args:
+            solver (str, optional): The SAT solver to use. Defaults to "kissat".
+            timeout (int, optional): Maximum time in seconds to run the solver. Defaults to None (no timeout).
+            
+        Returns:
+            SolverOutput: An object containing the result (SAT/UNSAT/UNKNOWN) and
+                         variable assignments if the formula is satisfiable.
+        """
         lit_valuation = {}
         self.serialize(constants.TMP_FILENAME)
         output, return_code = utils.system_call([solver, constants.TMP_FILENAME], timeout=timeout)
@@ -469,7 +826,7 @@ class Modeler:
             return SolverOutput(solver, "UNSAT", None)
            
         if return_code != 10:
-            return SolverOutput(solver, f"UNKNOWN with return code {return_code}", None)
+            return SolverOutput(solver, f"UNKNOWN with return code {return_code}, output = {output}", None)
             
         for line in output.split("\n"):
             if len(line) > 0 and line[0] == "v":
@@ -487,6 +844,20 @@ class Modeler:
         return SolverOutput(solver, "SAT", sem_valuation)
 
     def solve_with_proof(self, timeout=None):
+        """
+        Solves the formula with proof generation and returns the proof.
+        
+        This method calls the kissat SAT solver with proof generation enabled,
+        and returns the proof in DRAT format along with the elapsed time.
+        
+        Args:
+            timeout (int, optional): Maximum time in seconds to run the solver. Defaults to None (no timeout).
+            
+        Returns:
+            tuple: A tuple containing:
+                - list: The proof as a list of clause additions/deletions
+                - float: The elapsed time in seconds
+        """
         tmp_filename = "__tmp.cnf"
         self.serialize(tmp_filename)
         proof_filename = "__proof.drat"
@@ -595,7 +966,8 @@ class Modeler:
         print([self.lit_to_str(lit) for lit in clause])
 
     def clause_as_str(self, clause):
-        return str([self.lit_to_str(lit) for lit in clause])
+        numerical_clause = utils.to_numerical(clause, self)
+        return str([self.lit_to_str(lit) for lit in numerical_clause])
 
     def print_clauses(self, clauses=None) -> None:
         if clauses is None:

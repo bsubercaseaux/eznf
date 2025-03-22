@@ -42,3 +42,38 @@ def test_basics():
     assert output3.is_SAT()
     sol = output3.get_solution()
     assert sol["x"]
+
+
+def test_cardinality():
+    Z = modeler.Modeler()
+    Z.add_var("x")
+    Z.add_var("y")
+    Z.add_var("z")
+    Z.add_var("w")
+    Z.exactly_k(["x", "y", "z", "w"], 2)
+    output = Z.solve()
+    assert output.is_SAT()
+    sol = output.get_solution()
+    assert sol["x"] + sol["y"] + sol["z"] + sol["w"] == 2
+    
+    
+def test_cardinality_contra():
+    Z = modeler.Modeler()
+    Z.add_var("x")
+    Z.add_var("y")
+    Z.add_var("z")
+    Z.add_var("w")
+    Z.at_most_k(["x", "y", "z", "w"], 2)
+    Z.at_least_k(["x", "y", "z", "w"], 3)
+    output = Z.solve()
+    assert not output.is_SAT()
+    
+def test_cardinality_more():
+    Z = modeler.Modeler()
+    for i in range(200):
+        Z.add_var(f"x{i}")
+    Z.exactly_k([f"x{i}" for i in range(200)], 100)
+    output = Z.solve()
+    assert output.is_SAT()
+    sol = output.get_solution()
+    assert sum([sol[f"x{i}"] for i in range(200)]) == 100
