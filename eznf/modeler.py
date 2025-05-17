@@ -316,25 +316,31 @@ class Modeler:
 
     def v(self, name, introduce_if_absent=False) -> int:
         """
-        Returns the number of a variable given its name.
+        Returns the number of a literal given its name.
         
         Args:
-            name (str): The name of the variable.
+            name (str): The name of the literal.
             introduce_if_absent (bool, optional): If True and the variable doesn't exist,
                                                create it. Defaults to False.
             
         Returns:
-            int: The number of the variable.
+            int: The number associated to the literal (negative if negated).
             
         Raises:
             KeyError: If the variable doesn't exist and introduce_if_absent is False.
         """
+        sgn = 1
+        if name[0] == "-": 
+            name = name[1:]
+            sgn = -1
+        
         if name not in self._varmap:
             if introduce_if_absent:
                 self.add_var(name, description="implictly introduced variable")
+                print(f"Warning: Variable {name} used but not found, introducing it now.")
                 return self._varmap[name][0]
             raise KeyError(f"Variable {name} not found")
-        return self._varmap[name][0]
+        return self._varmap[name][0] * sgn
 
     def has_var(self, name) -> bool:
         """
@@ -437,7 +443,7 @@ class Modeler:
         o_interval = self._semvars[name]
         return o_interval.contains(value)
 
-    def add_clause(self, clause: list) -> None:
+    def add_clause(self, clause: list, introduce_if_absent = False) -> None:
         """
         Adds a clause to the modeler.
         
@@ -454,7 +460,7 @@ class Modeler:
             If in MaxSAT mode, the clause is marked as a hard constraint.
         """
         
-        numerical_clause = utils.to_numerical(clause, self)
+        numerical_clause = utils.to_numerical(clause, self, introduce_if_absent=introduce_if_absent)
         numerical_clause = utils.clause_filter(numerical_clause)
         if self._max_sat:
             self._clause_weights[tuple(numerical_clause)] = "HARD"
@@ -535,6 +541,9 @@ class Modeler:
         
     def add_kconstraint_le(self, bound, variables) -> None:
         """sum(variables) <= bound"""
+        if bound >= len(variables):
+            print(f"Warning: k-constraint with bound {bound} is vacuously true")
+            return
         neg_variables = [-v for v in utils.to_numerical(variables, self)]
         neg_bound = len(variables) - bound
         self.add_kconstraint(neg_bound, neg_variables)
@@ -683,7 +692,7 @@ class Modeler:
                 file.write(" ".join(map(str, clause)) + " 0\n")
             
 
-    def serialize_encoding(self, filename, clauses=None) -> None:
+    def serialize_encoding(self, filename, clauses=None, use_all_vars=True) -> None:
         """
         Serializes the encoding part of the modeler to a file in the appropriate format.
         
@@ -703,7 +712,11 @@ class Modeler:
         if clauses is None:
             clauses = self._clauses
         knf_constraints = self._gconstraints + self._kconstraints
+        
+       
         max_var = self.max_var_number()
+        if use_all_vars:
+            max_var = max(max_var, len(self._varmap))
 
         with open(filename, "w", encoding="utf-8") as file:
             if self._max_sat:
@@ -728,8 +741,8 @@ class Modeler:
                     file.write(" ".join(map(str, clause)) + " 0\n")
             else:
                 file.write(f"p cnf {max_var} {len(clauses)}\n")
-                for clause in clauses:
-                    file.write(" ".join(map(str, clause)) + " 0\n")
+                clause_lines = (f"{' '.join(map(str, cl))} 0\n" for cl in clauses)
+                file.writelines(clause_lines)
 
     def max_var_number(self) -> int:
         """
@@ -775,7 +788,7 @@ class Modeler:
                 )
         return output_builder(sem_valuation)
 
-    def solve_and_decode(self, output_builder, solver="kissat") -> tuple[str, int]:
+    def solve_and_decode(self, output_builder, solver="kissat", multiplicity=1) -> tuple[str, int]:
         lit_valuation = {}
         self.serialize(constants.TMP_FILENAME)
         output, return_code = utils.system_call([solver, constants.TMP_FILENAME])
@@ -784,6 +797,8 @@ class Modeler:
                 f"return code = {return_code}, UNSAT formula does not allow decoding."
             )
             return output, return_code
+        
+        print(f"Got a solution! {multiplicity-1} remaining... ")
             
         for line in output.split("\n"):
             if len(line) > 0 and line[0] == "v":
@@ -795,13 +810,20 @@ class Modeler:
                         continue
                     lit_valuation[abs(int_token)] = int_token > 0
         sem_valuation = {}
+        neg_clause = []
         for lit_name, (lit, _) in self._varmap.items():
             sem_valuation[lit_name] = lit_valuation[lit]
+            neg_clause.append(-lit if lit_valuation[lit] else lit)
+            
+        if multiplicity > 1:
+            self.add_clause(neg_clause)
+            self.solve_and_decode(output_builder, solver, multiplicity - 1)
+            
 
         # for sem_name, sem_var in self._semvars.items():
         #     sem_valuation[sem_name] = OrderIntervalValuation(sem_var, lit_valuation)
-        output_builder(sem_valuation)
-        return output, return_code
+        result = output_builder(sem_valuation)
+        return output, return_code, result
         
     def solve(self, solver="kissat", timeout=None) -> SolverOutput:
         """
@@ -889,7 +911,7 @@ class Modeler:
             for v_line in v_lines:
                 tokens = v_line.split(" ")
                 for token in tokens[1:]:
-                    lit_map[abs(int(token))] = True if int(token) > 0 else False
+                    lit_map[abs(int(token))] = (int(token) > 0)
 
             lit_print = input(
                 "Press 'p' to print the positive literals, and t to print the total valuation "
@@ -911,56 +933,79 @@ class Modeler:
             nxt = input()
             if len(nxt) > 0:
                 return
-            else:
-                # raise NotImplementedError("Debugging UNSAT formulas is not implemented yet")
-                # minimize unsat core naively.
-                # let's try to remove clauses one by one and see if the formula is still unsat.
-                clauses = self._clauses
-                while True:
-                    for i in range(len(clauses)):
-                        t_clauses = clauses[:i] + clauses[i + 1 :]
-                        self.serialize_encoding("tmp.cnf", t_clauses)
-                        output, return_code = utils.system_call(["cadical", "tmp.cnf"])
-                        if return_code == 20:
-                            print(f"Removed clause {i} ")
-                            clauses = t_clauses
-                            break
-                    else:
-                        print("No more clauses to remove")
-                        print("Remaining # of clauses:", len(clauses))
 
+            # raise NotImplementedError("Debugging UNSAT formulas is not implemented yet")
+            # minimize unsat core naively.
+            # let's try to remove clauses one by one and see if the formula is still unsat.
+            clauses = self._clauses
+            while True:
+                for i in range(len(clauses)):
+                    t_clauses = clauses[:i] + clauses[i + 1:]
+                    self.serialize_encoding("tmp.cnf", t_clauses)
+                    output, return_code = utils.system_call(["kissat", "tmp.cnf"])
+                    if return_code == 20:
+                        print(f"Removed clause {i}, {len(clauses)} remaining ")
+                        clauses = t_clauses
                         break
-                clause_print = input("Press 'c' to print the clauses. ")
-                if clause_print == "c":
-                    print("### Clauses ###")
-                    self.print_clauses(clauses)
-                input(
-                    "Press enter to see what clauses are unsatisfied by an input assignment. "
-                )
-                relevant_lits = set()
-                assignment = {}
-                for clause in clauses:
-                    for lit in clause:
-                        relevant_lits.add(max(lit, -lit))
-                for lit in relevant_lits:
-                    lit_val = input(f"variable: {self.lit_to_str(lit)} [0/1]: ")
-                    assignment[lit] = lit_val == "1"
-                print(assignment)
-                for clause in clauses:
-                    works = False
-                    for lit in clause:
-                        if assignment[max(lit, -lit)] == (lit > 0):
-                            works = True
-                            break
-                    if not works:
-                        print(f"Unsatisfied clause: {self.clause_as_str(clause)}")
-                        # self.print_clause(clause)
+                else:
+                    print("No more clauses to remove")
+                    print("Remaining # of clauses:", len(clauses))
+
+                    break
+            clause_print = input("Press 'c' to print the clauses. ")
+            if clause_print == "c":
+                print("### Clauses ###")
+                self.print_clauses(clauses)
+            input(
+                "Press enter to see what clauses are unsatisfied by an input assignment. "
+            )
+            relevant_lits = set()
+            assignment = {}
+            for clause in clauses:
+                for lit in clause:
+                    relevant_lits.add(max(lit, -lit))
+            for lit in relevant_lits:
+                lit_val = input(f"variable: {self.lit_to_str(lit)} [0/1]: ")
+                assignment[lit] = lit_val == "1"
+            print(assignment)
+            for clause in clauses:
+                works = False
+                for lit in clause:
+                    if assignment[max(lit, -lit)] == (lit > 0):
+                        works = True
+                        break
+                if not works:
+                    print(f"Unsatisfied clause: {self.clause_as_str(clause)}")
+                    # self.print_clause(clause)
 
             # filtered_clauses_var = input("type the name of a vairable to filter clauses. ")
             # lit = self._varmap[filtered_clauses_var][0]
             # for clause in self._clauses:
             #   if lit in clause or -lit in clause:
             #       print([self.lit_to_str(lit) for lit in clause])
+            
+    def evaluate(self, model):
+        """
+        Evaluates the modeler with a given model.
+        
+        This method checks if the model satisfies all clauses in the modeler.
+        
+        Args:
+            model (dict): A dictionary mapping variable names to their boolean values.
+            
+        Returns:
+            bool: True if the model satisfies all clauses, and the first falsified clause otherwise.
+        """
+        def lit_satisfied(lit):
+            if lit > 0:
+                return model[self.lit_to_str(lit)]
+            else:
+                return not model[self.lit_to_str(-lit)]
+        for clause in self._clauses:
+            if not any(lit_satisfied(lit) for lit in clause):
+                return False, clause
+        return True, None
+        
 
     def print_clause(self, clause):
         print([self.lit_to_str(lit) for lit in clause])
