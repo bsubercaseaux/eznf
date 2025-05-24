@@ -4,6 +4,7 @@ from eznf import cardinality
 from eznf import order_interval
 from eznf import constants
 from eznf import xor
+from eznf import equivars
 from eznf.solver_output import SolverOutput
 
 
@@ -117,6 +118,7 @@ class Modeler:
         self._qbf = False
         self._qbf_var_blocks = []
         self._clause_weights = {}
+        self._equivars = equivars.EquivalenceVarPool()
 
     def add_var(self, name, description="no description", var_number=None) -> None:
         """
@@ -147,6 +149,21 @@ class Modeler:
 
         self._rvarmap[self._varmap[name][0]] = name
         return self._varmap[name][0]
+
+    def add_var_equivalence(self, var1, var2) -> None:
+        """
+        Adds an equivalence relation between two variables.
+        
+        This method uses the equivalence variable pool to manage variable equivalences.
+        
+        Args:
+            var1 (str): The name of the first variable.
+            var2 (str): The name of the second variable.
+            
+        Returns:
+            None
+        """
+        self._equivars.add_equivalence(var1, var2)
 
     def add_existential_var(
         self, name, description="no description", var_number=None
@@ -459,12 +476,23 @@ class Modeler:
             It automatically creates anonymous variables for unknown literal numbers.
             If in MaxSAT mode, the clause is marked as a hard constraint.
         """
-        
+        if not self.equivars.is_empty():
+            clause_post_equiv = []
+            for lit in clause:
+                if isinstance(lit, int):
+                    var_name = ("-" if lit < 0 else "") + self._rvarmap[abs(lit)]
+                else:
+                    var_name = lit
+                clause_post_equiv.append(self.equivars.get_representative(var_name))
+            clause = clause_post_equiv
+
+    
         numerical_clause = utils.to_numerical(clause, self, introduce_if_absent=introduce_if_absent)
         numerical_clause = utils.clause_filter(numerical_clause)
         if self._max_sat:
             self._clause_weights[tuple(numerical_clause)] = "HARD"
         if numerical_clause == "SKIP":
+            print(f"Warning: Clause {clause} is trivially true, skipping it")
             return
         for lit in numerical_clause:
             if abs(lit) not in self._rvarmap:
