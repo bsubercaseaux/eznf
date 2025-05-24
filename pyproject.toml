@@ -4,13 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eznf"
-version = "0.110.2"
+version = "0.111.2"
 authors = [
   { name="Bernardo Subercaseaux", email="bernardosubercaseaux@gmail.com" },
 ]
 description = "A prototype library to prototype SAT encodings"
 readme = "README.md"
 requires-python = ">=3.6"
+dependencies = [
+  "lark",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
