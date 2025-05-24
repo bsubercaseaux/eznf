@@ -1,9 +1,9 @@
-  build/
-  dist/
-  *.egg-info/
-  __pycache__/
-  *.pyc
-  .DS_Store
-  tmp.cnf
-  *.png
-  *.wcnf
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+.DS_Store
+tmp.cnf
+*.png
+*.wcnf
