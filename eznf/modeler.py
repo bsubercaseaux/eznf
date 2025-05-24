@@ -476,14 +476,14 @@ class Modeler:
             It automatically creates anonymous variables for unknown literal numbers.
             If in MaxSAT mode, the clause is marked as a hard constraint.
         """
-        if not self.equivars.is_empty():
+        if not self._equivars.is_empty():
             clause_post_equiv = []
             for lit in clause:
                 if isinstance(lit, int):
                     var_name = ("-" if lit < 0 else "") + self._rvarmap[abs(lit)]
                 else:
                     var_name = lit
-                clause_post_equiv.append(self.equivars.get_representative(var_name))
+                clause_post_equiv.append(self._equivars.get_representative(var_name))
             clause = clause_post_equiv
 
     
