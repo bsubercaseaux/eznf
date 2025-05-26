@@ -157,13 +157,23 @@ class Modeler:
         This method uses the equivalence variable pool to manage variable equivalences.
         
         Args:
-            var1 (str): The name of the first variable.
-            var2 (str): The name of the second variable.
+            var1 (str | int): The name of the first variable.
+            var2 (str | int): The name of the second variable.
             
         Returns:
             None
         """
-        self._equivars.add_equivalence(var1, var2)
+        svar1 = var1
+        svar2 = var2
+        if isinstance(var1, int):
+            svar1 = self._rvarmap[abs(var1)]
+            if var1 < 0:
+                svar1 = "-" + svar1
+        if isinstance(var2, int):
+            svar2 = self._rvarmap[abs(var2)]
+            if var2 < 0:
+                svar2 = "-" + svar2
+        self._equivars.add_equivalence(svar1, svar2)
 
     def add_existential_var(
         self, name, description="no description", var_number=None
@@ -479,12 +489,16 @@ class Modeler:
         if not self._equivars.is_empty():
             clause_post_equiv = []
             for lit in clause:
+               
                 if isinstance(lit, int):
                     var_name = ("-" if lit < 0 else "") + self._rvarmap[abs(lit)]
                 else:
                     var_name = lit
-                clause_post_equiv.append(self._equivars.get_representative(var_name))
-            clause = clause_post_equiv
+                if self._equivars.has_var(var_name):
+                    clause_post_equiv.append(self._equivars.get_representative(var_name))
+                else:
+                    clause_post_equiv.append(lit)
+            clause = clause_post_equiv  
 
     
         numerical_clause = utils.to_numerical(clause, self, introduce_if_absent=introduce_if_absent)
@@ -676,13 +690,48 @@ class Modeler:
             For k=1, a more efficient encoding might be available.
         """
         if k == 1:
-            print("warning: inefficiency in the encoding!")
+            print("warning: inefficiency in the encoding! at_least_k with k=1 is better encoded as a single clause")
 
         # sum_{v in variables} v >= k
         # sum_{v in variables} -v <= |variables| - k
         num_variables = utils.to_numerical(variables, self)
         neg_variables = [-var for var in num_variables]
         self.at_most_k(neg_variables, len(variables) - k)
+
+    def lex_less_equal(self, seq1, seq2, max_comparisons=None) -> None:
+        """
+            Ensure that seq1 is lexicographically smaller or equal than seq2
+            Assumes the sequences are of the same length.
+        
+        """
+        assert len(seq1) == len(seq2)
+
+        seqVars1 = utils.to_numerical(seq1, self)
+        seqVars2 = utils.to_numerical(seq2, self)
+
+        v_name = f"_lex_{self.n_vars()+1}"
+        self.add_var(v_name)
+        all_previous_equal = self.v(v_name)
+        self.add_clause([all_previous_equal])
+        cnt_supp = 0
+        cnt_skip = 0
+        if max_comparisons is None:
+            max_comparisons = len(seqVars1) 
+        for i in range(len(seqVars1)):
+            if cnt_supp >= max_comparisons:
+                break
+                # pass
+            if seqVars1[i] == seqVars2[i]:
+                cnt_skip += 1
+                continue
+            self.add_clause([-all_previous_equal, -seqVars1[i], +seqVars2[i]]) # all previous equal implies seq1[i] <= seq2[i]
+            cnt_supp += 1
+            vname_new = f"_lex_{self.n_vars()+1}"
+            self.add_var(vname_new)
+            all_previous_equal_new = self.v(vname_new)
+            self.add_clause([-all_previous_equal, -seqVars1[i], +all_previous_equal_new])
+            self.add_clause([-all_previous_equal, +seqVars2[i], +all_previous_equal_new])
+            all_previous_equal = all_previous_equal_new
 
     def serialize(self, basename) -> None:
         """
@@ -844,6 +893,7 @@ class Modeler:
             neg_clause.append(-lit if lit_valuation[lit] else lit)
             
         if multiplicity > 1:
+            print(f"Adding negated clause {neg_clause} to the modeler")
             self.add_clause(neg_clause)
             self.solve_and_decode(output_builder, solver, multiplicity - 1)
             

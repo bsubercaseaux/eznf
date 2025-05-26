@@ -1,6 +1,26 @@
 import itertools
 
 
+def str_abs(x):
+    """
+    Returns the absolute value of a string variable.
+    If the variable starts with '-', it returns the variable without the '-' prefix.
+    Otherwise, it returns the variable as is.
+    """
+    if isinstance(x, str) and x.startswith('-'):
+        return x[1:]  # Remove the '-' prefix
+    return x  # Return as is if no '-' prefix
+
+def str_neg(x):
+    """
+    Returns the negation of a string variable.
+    If the variable starts with '-', it returns the variable without the '-' prefix.
+    Otherwise, it returns the variable prefixed with '-'.
+    """
+    if isinstance(x, str) and x.startswith('-'):
+        return x[1:]  # Remove the '-' prefix
+    return f"-{x}"  # Add '-' prefix if not present
+
 class EquivalenceVarPool:
     def __init__(self):
         self.ranks = {}
@@ -41,6 +61,7 @@ class EquivalenceVarPool:
         Supports negative variables: add_equivalence('x', '-y') means x = -y
         """
         # Parse signs from variable names
+        print(f"Adding equivalence: {var1} <-> {var2}")
         relation_sign = 1
         
         if isinstance(var1, str) and var1.startswith('-'):
@@ -84,11 +105,29 @@ class EquivalenceVarPool:
         root, sign = self.find(var)
         return root if sign == 1 else f"-{root}"
     
-    def contains_var(self, var):
+    def has_var(self, var):
         # Handle negative input
         if isinstance(var, str) and var.startswith('-'):
             var = var[1:]
         return var in self.parents
+
+    def get_equivalence_classes(self):
+        """
+        Returns a dictionary where keys are representatives and values are lists of equivalent variables.
+        """
+        print(f"Getting equivalence classes for variables: {self.parents.keys()}")
+        equivalence_classes = {}
+        for var in self.parents:
+            # print(f"Processing variable: {var}")
+            rep = self.get_representative(var)
+            # print(f"Representative for {var} is {rep}")
+            if rep not in equivalence_classes and str_neg(rep) not in equivalence_classes:
+                equivalence_classes[rep] = []
+            if str_neg(rep) in equivalence_classes:
+                equivalence_classes[str_neg(rep)].append(str_neg(var))
+            else:
+                equivalence_classes[rep].append(var)
+        return equivalence_classes
 
 
 # # Example usage:
@@ -122,3 +161,5 @@ class EquivalenceVarPool:
 
 # print(f"\nget_representative('d') = {pool2.get_representative('d')}")    # d (or equivalent)  
 # print(f"get_representative('a') = {pool2.get_representative('a')}")    # -d (or equivalent)
+
+# print(pool2.get_equivalence_classes())
