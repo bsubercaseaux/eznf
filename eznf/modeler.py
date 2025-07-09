@@ -305,7 +305,7 @@ class Modeler:
             self.add_clause(clause)
        
 
-    def add_soft_clause(self, clause) -> None:
+    def add_soft_clause(self, clause, weight=None) -> None:
         """
         Adds a soft clause to the modeler for MaxSAT problems.
         
@@ -314,7 +314,8 @@ class Modeler:
         
         Args:
             clause (list): A list of literals representing the clause.
-            
+            weight (int, optional): The weight of the soft clause.
+
         Returns:
             None
         """
@@ -324,7 +325,7 @@ class Modeler:
             self._max_sat = True
             for prev_clause in self._clauses:
                 self._clause_weights[tuple(prev_clause)] = "HARD"
-        self._clause_weights[tuple(utils.to_numerical(clause, self))] = "SOFT"
+        self._clause_weights[tuple(utils.to_numerical(clause, self))] = 1 if weight is None else weight
 
     def add_xor_disjunction(self, xor_disjunction, auxiliary=True) -> None:
         """
@@ -775,7 +776,7 @@ class Modeler:
         
         The format depends on the type of formula:
         - CNF: Standard DIMACS CNF format
-        - MaxSAT: DIMACS WCNF format
+        - MaxSAT: DIMACS WCNF format (> 2022 format)
         - With k-constraints: KNF format
         - QBF: QDIMACS format
         
@@ -798,10 +799,10 @@ class Modeler:
         with open(filename, "w", encoding="utf-8") as file:
             if self._max_sat:
                 top = len(clauses) + 1  # not entirely sure about this yet.
-                file.write(f"p wcnf {max_var} {len(clauses)} {top}\n")
+                file.write(f"c p wcnf {max_var} {len(clauses)} {top}\n")
                 for clause in clauses:
                     clause_weight = (
-                        top if self._clause_weights[tuple(clause)] == "HARD" else 1
+                        'h' if self._clause_weights[tuple(clause)] == "HARD" else self._clause_weights[tuple(clause)]
                     )
                     file.write(" ".join(map(str, [clause_weight] + clause)) + " 0\n")
             elif len(knf_constraints) > 0:
@@ -836,6 +837,28 @@ class Modeler:
             if len(clause):
                 mx = max(mx, *[abs(lit) for lit in clause])
         return mx
+    
+    def unit_propagate(self) -> None:
+        """
+        Performs unit propagation on the modeler.
+        
+        """
+        while True:
+            unit_clauses = [clause for clause in self._clauses if len(clause) == 1]
+            if not unit_clauses:
+                break
+            units = [clause[0] for clause in unit_clauses]
+            new_clauses = []
+            for clause in self._clauses:
+                stays = True
+                for unit in units:
+                    if -unit in clause:
+                        clause.remove(-unit)
+                    if unit in clause:
+                        stays = False
+                if stays:
+                    new_clauses.append(clause)
+            self._clauses = new_clauses
 
     def serialize_decoder(self, filename) -> None:
         pass

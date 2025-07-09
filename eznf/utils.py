@@ -13,7 +13,7 @@ def to_numerical(clause, modeler, introduce_if_absent=False) -> List[int]:
         elif isinstance(slit, int):
             numerical_clause.append(slit)
         else:
-            raise TypeError("Unknown type in clause")
+            raise TypeError("Unknown type in clause", type(slit), "value", slit)
     return numerical_clause
 
 
